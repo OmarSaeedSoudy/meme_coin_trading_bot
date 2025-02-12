@@ -1,6 +1,7 @@
 # Core Django & PostgreSQL
 Django==4.2
 psycopg2-binary==2.9.9
+python-dotenv
 
 # REST API & Django Extensions
 djangorestframework==3.14.0
