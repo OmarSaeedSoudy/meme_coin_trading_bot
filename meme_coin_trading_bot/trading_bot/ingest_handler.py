@@ -29,7 +29,6 @@ class IngestAPIHandler:
 
 
     def fetch_meme_coins(self):
-        index = 1
         """
         Fetches meme coins market data.
         """
