@@ -1,37 +1,44 @@
-# crypto/trading_algorithm.py
-from utils import fetch_meme_coins
+from .models import MemeCoins, MarketData, Trade
+from .filtering_handler import TradingDecisionEngine
+from django.db.models import Sum, F
 
 def trading_decision(coin):
-    # Define thresholds for decision making
-    buy_threshold_price_change = 2.0  # Buy if price change percentage is above this
-    sell_threshold_price_change = -2.0  # Sell if price change percentage is below this
-    volume_threshold = 1000000  # Minimum volume to consider a trade
-    ath_threshold = -50.0  # Consider buying if the price is 50% below ATH
+    return TradingDecisionEngine.make_decision(coin)
 
-    # Extract relevant data
-    current_price = coin['current_price']
-    price_change_24h = coin['price_change_percentage_24h']
-    total_volume = coin['total_volume']
-    ath_change_percentage = coin['ath_change_percentage']
+def execute_trading_cycle():
+    """Execute pending trades through exchange API"""
+    coins = MemeCoins.objects.all()
 
-    # Decision logic
-    if price_change_24h > buy_threshold_price_change and total_volume > volume_threshold:
-        if ath_change_percentage < ath_threshold:            
-            return f"Buy {coin['name']} at ${current_price:.2f}"
-    elif price_change_24h < sell_threshold_price_change:
-        return f"Sell {coin['name']} at ${current_price:.2f}"
-    else:
-        return f"Hold {coin['name']}"
+    for coin in coins:
+        decision = trading_decision(coin)
+        latest_data = MarketData.objects.filter(coin=coin).latest('timestamp')
 
-def main():
-    # Fetch meme coins data
-    meme_coins = fetch_meme_coins()
-    if meme_coins:
-        for coin in meme_coins:
-            decision = trading_decision(coin)
-            print(decision)
-    else:
-        print("Failed to fetch meme coins data.")
+        if decision == 'BUY':
+            # Implement your buy logic here
+            Trade.objects.create(
+                coin=coin,
+                trade_type=Trade.BUY,
+                price=latest_data.current_price,
+                quantity=calculate_position_size()  # Implement your position sizing
+            )
+        elif decision == 'SELL':
+            # Get all unconverted buy positions
+            buy_trades = Trade.objects.filter(
+                coin=coin,
+                trade_type=Trade.BUY,
+                related_trade__isnull=True
+            )
+
+            # Implement your sell logic here
+            sell_trade = Trade.objects.create(
+                coin=coin,
+                trade_type=Trade.SELL,
+                price=latest_data.current_price,
+                quantity=buy_trades.aggregate(Sum('quantity'))['quantity__sum']
+            )
+
+            # Link sell trade to buy trades
+            buy_trades.update(related_trade=sell_trade)
 
 if __name__ == "__main__":
-    main()
+    execute_trading_cycle()

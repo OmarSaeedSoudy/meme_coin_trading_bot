@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meme Coin Trading Bot</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .bot-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #4CAF50;
+            background: #333;
+            color: #fff;
+        }
+
+        button {
+            background: #4CAF50;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .status-box {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        #transaction-log {
+            height: 200px;
+            overflow-y: auto;
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Meme Coin Trader Pro 🐶</h1>
+        
+        <div class="bot-controls">
+            <div>
+                <label for="coin-select">Select Meme Coin:</label>
+                <select id="coin-select">
+                    <option value="DOGE">Dogecoin (DOGE)</option>
+                    <option value="SHIB">Shiba Inu (SHIB)</option>
+                    <option value="PEPE">Pepe Coin (PEPE)</option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="amount">Investment Amount ($):</label>
+                <input type="number" id="amount" value="100" min="10">
+            </div>
+        </div>
+
+        <div class="bot-controls">
+            <button onclick="startTrading()">▶ Start Trading</button>
+            <button onclick="stopTrading()">⏹ Stop Trading</button>
+        </div>
+
+        <div class="status-box">
+            <h3>📈 Live Status</h3>
+            <div id="status">Not running</div>
+            <div id="profit-loss">Profit/Loss: $0.00</div>
+        </div>
+
+        <div class="status-box">
+            <h3>📜 Transaction Log</h3>
+            <div id="transaction-log"></div>
+        </div>
+    </div>
+
+    <script>
+        let isTrading = false;
+        let profitLoss = 0;
+        
+        function simulatePrice() {
+            return Math.random() * 0.1 + 0.0001; // Random price between 0.0001 and 0.1001
+        }
+
+        function logTransaction(message) {
+            const log = document.getElementById('transaction-log');
+            log.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}<br>${log.innerHTML}`;
+        }
+
+        function startTrading() {
+            if(isTrading) return;
+            isTrading = true;
+            document.getElementById('status').textContent = 'Active';
+            logTransaction('Trading session started');
+            
+            const tradeInterval = setInterval(() => {
+                if(!isTrading) {
+                    clearInterval(tradeInterval);
+                    return;
+                }
+                
+                const amount = parseFloat(document.getElementById('amount').value);
+                const simulatedPrice = simulatePrice();
+                const profit = (Math.random() - 0.45) * amount * 0.1; // Simulate ±10% variance
+                
+                profitLoss += profit;
+                document.getElementById('profit-loss').textContent = 
+                    `Profit/Loss: $${profitLoss.toFixed(2)}`;
+                
+                logTransaction(`Executed trade at $${simulatedPrice.toFixed(4)}: ${profit >= 0 ? 'Profit' : 'Loss'} $${Math.abs(profit).toFixed(2)}`);
+            }, 1500);
+        }
+
+        function stopTrading() {
+            isTrading = false;
+            document.getElementById('status').textContent = 'Not running';
+            logTransaction('Trading session stopped');
+        }
+    </script>
+</body>
+</html>

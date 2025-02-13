@@ -56,6 +56,27 @@ class MarketData(models.Model):
 
 
 
+class Trade(models.Model):
+    BUY = 'BUY'
+    SELL = 'SELL'
+    TRADE_TYPES = [
+        (BUY, 'Buy'),
+        (SELL, 'Sell'),
+    ]
+
+    coin = models.ForeignKey(MemeCoins, on_delete=models.CASCADE)
+    trade_type = models.CharField(max_length=4, choices=TRADE_TYPES)
+    price = models.DecimalField(max_digits=20, decimal_places=10)
+    quantity = models.DecimalField(max_digits=30, decimal_places=5)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    related_trade = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.trade_type} {self.quantity} {self.coin.symbol} @ {self.price}"
+
+
+
+
 # class Trade(models.Model):
 #     trade_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 #     coin_id = models.ForeignKey(MemeCoins, on_delete=models.CASCADE, related_name="trades")
