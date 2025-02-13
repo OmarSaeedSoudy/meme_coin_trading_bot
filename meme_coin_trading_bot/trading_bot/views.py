@@ -7,3 +7,6 @@ def index(request):
     main()
     word = "Hello"
     return render(request, 'index.html', {'word': word})
+
+def home(request):
+    return render(request,'home.html')
