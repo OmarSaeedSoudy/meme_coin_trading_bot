@@ -1,37 +1,36 @@
-# from rest_framework import serializers
-# from trading_bot.models import Token, MarketData, Wallet, Trade, Portfolio, Alert, Analytics
+# serializers.py
+from rest_framework import serializers
+from trading_bot.models import (
+    Categories,
+    MemeCoins,
+    MemeCoinCategories,
+    MarketData,
+    Trades
+)
 
-# class TokenSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Token
-#         fields = '__all__'
+class CategoriesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categories
+        fields = '__all__'
 
-# class MarketDataSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = MarketData
-#         fields = '__all__'
+class MemeCoinsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MemeCoins
+        fields = '__all__'
 
-# class WalletSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Wallet
-#         fields = '__all__'
+class MemeCoinCategoriesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MemeCoinCategories
+        fields = '__all__'
 
-# class TradeSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Trade
-#         fields = '__all__'
+class MarketDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketData
+        fields = '__all__'
+        read_only_fields = ('inserted_at',)
 
-# class PortfolioSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Portfolio
-#         fields = '__all__'
-
-# class AlertSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Alert
-#         fields = '__all__'
-
-# class AnalyticsSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Analytics
-#         fields = '__all__'
+class TradesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Trades
+        fields = '__all__'
+        read_only_fields = ('buy_date', 'sell_date', 'tx_hash')

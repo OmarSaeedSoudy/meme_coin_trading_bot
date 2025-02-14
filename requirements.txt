@@ -9,6 +9,10 @@ django-cors-headers==4.2.0
 django-filter==23.3
 drf-yasg==1.21.7  # Swagger for API docs
 
+pytz
+solana
+base58
+
 # Web3 & Blockchain Interaction (Solana)
 # solana==0.34.0
 # pyserum==0.5.1  # For interacting with Serum DEX on Solana

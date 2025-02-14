@@ -13,7 +13,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             border: 2px solid #4CAF50;
             border-radius: 10px;
@@ -60,6 +60,56 @@
             border-radius: 5px;
             margin-top: 15px;
         }
+        #transaction-log {
+            height: 150px;
+            overflow-y: auto;
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 14px;
+            max-height: 200px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        table, th, td {
+            border: 1px solid #4CAF50;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+
+        td {
+            background: #222;
+        }
+
+        @media (max-width: 600px) {
+            .bot-controls {
+                flex-direction: column;
+            }
+
+            th, td {
+                font-size: 12px;
+                padding: 6px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -94,6 +144,43 @@
         </div>
 
         <div class="status-box">
+            <h3>📈 Transactions</h3>
+            
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Trade ID</th>
+                        <th>Coin</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Buying Price</th>
+                        <th>Quantity</th>
+                        <th>Total Paid</th>
+                        <th>Transaction Hash</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in all_trades %}
+                    <tr>
+                        <td>{{ trade.trade_id }}</td>
+                        <td>{{ trade.coin_id }}</td>
+                        <td>{{ trade.trade_type }}</td>
+                        <td>{{ trade.status }}</td>
+                        <td>{{ trade.buying_price }}</td>
+                        <td>{{ trade.quantity }}</td>
+                        <td>{{ trade.total_paid_amount }}</td>
+                        <td>{{ trade.tx_hash }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">No trades available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="status-box">
             <h3>📜 Transaction Log</h3>
             <div id="transaction-log"></div>
         </div>
@@ -115,6 +202,11 @@
         function startTrading() {
             if(isTrading) return;
             isTrading = true;
+
+            fetch('http://127.0.0.1:8000/start_trading/')
+                .catch(error => console.error('Error:', error));
+
+
             document.getElementById('status').textContent = 'Active';
             logTransaction('Trading session started');
             

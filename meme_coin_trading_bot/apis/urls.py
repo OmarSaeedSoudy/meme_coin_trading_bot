@@ -1,20 +1,17 @@
-# from django.urls import path, include
-# from rest_framework.routers import DefaultRouter
-# from .views import (
-#     TokenViewSet, MarketDataViewSet, WalletViewSet, TradeViewSet, 
-#     PortfolioViewSet, AlertViewSet, AnalyticsViewSet, business_overview
-# )
+# urls.py
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from . import views
 
-# router = DefaultRouter()
-# router.register(r'tokens', TokenViewSet)
-# router.register(r'market-data', MarketDataViewSet)
-# router.register(r'wallets', WalletViewSet)
-# router.register(r'trades', TradeViewSet)
-# router.register(r'portfolio', PortfolioViewSet)
-# router.register(r'alerts', AlertViewSet)
-# router.register(r'analytics', AnalyticsViewSet)
+router = DefaultRouter()
+router.register(r'categories', views.CategoriesViewSet)
+router.register(r'memecoins', views.MemeCoinsViewSet)
+router.register(r'memecoin-categories', views.MemeCoinCategoriesViewSet)
+router.register(r'marketdata', views.MarketDataViewSet)
+router.register(r'trades', views.TradesViewSet)
 
-# urlpatterns = [
-#     path('', include(router.urls)),
-#     path('api/business-overview/', business_overview, name='business-overview'),
-# ]
+urlpatterns = [
+    path('', include(router.urls)),
+    path('execute-buy/', views.TradesViewSet.as_view({'post': 'execute_buy'})),
+    path('execute-sell/<int:pk>/', views.TradesViewSet.as_view({'post': 'execute_sell'})),
+]

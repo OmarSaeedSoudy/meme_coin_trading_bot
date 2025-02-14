@@ -1,166 +1,109 @@
-from django.db.models import F, Window
-from django.db.models.functions import Lag
-from .models import MarketData, MemeCoins, Trade
-import numpy as np
-from django.db.models import Sum, F
+from django.utils import timezone
+from .models import Trades  
 
-class MemeCoinFilter:
-    ESSENTIAL_KEYS = {
-        'current_price',
-        'price_change_24h',
-        'price_change_percentage_24h',
-        'market_cap',
-        'total_volume',
-        'high_24h',
-        'low_24h',
-        'circulating_supply',
-        'ath',
-        'ath_change_percentage'
-    }
+class FilteringAlgorithm:
+    def __init__(self):
+        self.profit_target = 0.02  # 2% profit target
+        self.stop_loss_percent = -0.01  # 1% stop loss
+        self.rsi_overbought = 70
+        self.rsi_oversold = 30
+        self.volume_threshold = 1000000  # Minimum volume threshold in base currency
 
-    @staticmethod
-    def filter_essential(data):
-        """Filter only essential trading metrics from MarketData instance"""
-        return {
-            key: getattr(data, key)
-            for key in MemeCoinFilter.ESSENTIAL_KEYS
-            if hasattr(data, key)
-        }
+    def evaluate_coin(self, coin_insights):
+        """Main evaluation function returning decision"""
+        coin_results = {}
 
-    @classmethod
-    def calculate_technical_indicators(cls, coin):
-        """Calculate technical indicators using historical MarketData"""
-        historical_data = MarketData.objects.filter(coin=coin).order_by('-timestamp')[:200]
+        # Boolean to Check if coin is ready to be bought
+        buy_decision, buy_score, buy_reasons = self._evaluate_buy(coin_insights)
+        coin_results["ready_to_buy"] = buy_decision
+        coin_results["buy_reasons"] = buy_reasons
+        coin_results["buy_score"] = buy_score
 
-        if len(historical_data) < 50:
-            return None
+        # Check if coin trades are ready to be closed
+        coin_results["trades"] = []
+        # get all coin trades 
+        all_trades = Trades.objects.filter(coin_id=coin_insights['symbol'], status='OPEN')
+        for trade in all_trades:
+            action, profit, sell_reasons = self._evaluate_sell(coin_insights, trade)
+            coin_results["trades"].append({
+                "id": trade.id,
+                "action": action,
+                "profit": profit
+            })
 
-        prices = [float(data.current_price) for data in historical_data]
-        volumes = [float(data.total_volume) for data in historical_data]
-
-        return {
-            'sma_50': cls._calculate_sma(prices, 50),
-            'sma_200': cls._calculate_sma(prices, 200),
-            'rsi': cls._calculate_rsi([data.price_change_percentage_24h for data in historical_data]),
-            'volume_ma': cls._calculate_sma(volumes, 20),
-            'price_volatility': cls._calculate_volatility(historical_data)
-        }
-
-    @staticmethod
-    def _calculate_sma(data, window):
-        return np.mean(data[-window:]) if len(data) >= window else None
-
-    @staticmethod
-    def _calculate_rsi(price_changes, period=14):
-        if len(price_changes) < period:
-            return 50  # Neutral value for insufficient data
-
-        gains = [x for x in price_changes[-period:] if x > 0]
-        losses = [abs(x) for x in price_changes[-period:] if x < 0]
-
-        avg_gain = np.mean(gains) if gains else 0
-        avg_loss = np.mean(losses) if losses else 1e-9  # Avoid division by zero
-
-        rs = avg_gain / avg_loss
-        return 100 - (100 / (1 + rs))
-
-    @staticmethod
-    def _calculate_volatility(historical_data):
-        """Calculate volatility using last 24h data"""
-        if not historical_data:
-            return 0
-
-        latest = historical_data[0]
-        return ((latest.high_24h - latest.low_24h) / latest.low_24h) * 100
-
-class TradingDecisionEngine:
+        return coin_results
 
 
-    @staticmethod
-    def get_average_buy_price(coin):
-        """Calculate average price of all unconverted buy positions"""
-        buys = Trade.objects.filter(
-            coin=coin,
-            trade_type=Trade.BUY,
-            related_trade__isnull=True
-        ).aggregate(
-            total_quantity=Sum('quantity'),
-            total_cost=Sum(F('quantity') * F('price'))
-        )
+    def _evaluate_buy(self, insights):
+        """Evaluate buy conditions"""
+        reasons = []
+        buy_score = 0
 
-        if buys['total_quantity'] and buys['total_quantity'] > 0:
-            return buys['total_cost'] / buys['total_quantity']
-        return None
+        # Technical indicators
+        if insights.get('rsi_14', 0) < self.rsi_oversold:
+            reasons.append('Oversold (RSI < 30)')
+            buy_score += 1
 
+        if insights['price'] > insights['ma_50']:
+            reasons.append('Price above 50-day MA')
+            buy_score += 1
+        if insights.get('ma_50') > insights['ma_200']:
+            reasons.append('Golden Cross (50MA > 200MA)')
+            buy_score += 1
 
+        # Fundamental metrics
+        if insights.get('volume_24h', 0) > self.volume_threshold:
+            reasons.append('High trading volume')
+            buy_score += 1
 
-    @staticmethod
-    def make_decision(coin):
-        """Main decision-making method using current market data"""
-        try:
-            latest_data = MarketData.objects.filter(coin=coin).latest('timestamp')
-        except MarketData.DoesNotExist:
-            return 'HOLD'
+        # Price momentum
+        if all([
+            insights['price_change_1h'] > 0,
+            insights['price_change_24h'] > 0
+        ]):
+            reasons.append('Positive momentum across all timeframes')
+            buy_score += 1
 
-        filtered_data = MemeCoinFilter.filter_essential(latest_data)
-        technicals = MemeCoinFilter.calculate_technical_indicators(coin)
-
-        if not technicals:
-            return 'HOLD'
-
-        decision_data = {**filtered_data, **technicals}
-        decision_data['price_volatility'] = technicals['price_volatility']
-
-        if TradingDecisionEngine._should_buy(decision_data):
-            return 'BUY'
-        if TradingDecisionEngine._should_sell(decision_data, coin):  # Now passing coin parameter
-            return 'SELL'
-        return 'HOLD'
+        return buy_score >= 3, buy_score, reasons
+    
 
 
+    def _evaluate_sell(self, insights, trade):
+        """Evaluate sell conditions"""
+        reasons = []
+        sell_score = 0
 
+        # Calculate position performance
+        current_price = insights['price']
+        bought_price = trade.buying_price
+        price_change = (current_price - bought_price) / bought_price
 
+        # Profit/Loss conditions
+        if price_change >= self.profit_target:
+            reasons.append(f"Hit profit target (+{price_change:.2%})")
+            sell_score += 1
+        if price_change <= self.stop_loss_percent:
+            reasons.append(f"Hit stop loss ({price_change:.2%})")
+            sell_score += 1
 
-    @staticmethod
-    def should_buy(data):
-        buy_conditions = [
-            data['price_change_percentage_24h'] > 5,
-            data['current_price'] > data['sma_50'],
-            data['volume_ma'] > 1.5 * data['total_volume'],
-            data['rsi'] < 30,
-            data['ath_change_percentage'] < -30
-        ]
-        return sum(buy_conditions) >= 3
+        # Technical indicators
+        if insights['rsi_14'] > self.rsi_overbought:
+            reasons.append('Overbought (RSI > 70)')
+            sell_score += 1
+        if insights['price'] < insights['ma_200']:
+            reasons.append('Price below 200-day MA')
+            sell_score += 1
 
+        # Time-based exit
+        if (timezone.now() - trade.bought_at).days > 7:
+            reasons.append('Held longer than 7 days')
+            sell_score += 1
 
+        # Volume drying up
+        if insights['volume_24h'] < (self.volume_threshold * 0.5):
+            reasons.append('Low trading volume')
+            sell_score += 1
 
+        profit = insights['price'] * self.profit_target
 
-    @staticmethod
-    def _should_sell(data, coin):
-        current_price = data['current_price']
-        sell_conditions = []
-
-        # Get average buy price from trade history
-        avg_buy_price = TradingDecisionEngine.get_average_buy_price(coin)
-
-        if avg_buy_price:
-            # Calculate profit/loss percentage
-            pl_percent = ((current_price - avg_buy_price) / avg_buy_price) * 100
-
-            # Add profit-based sell conditions
-            sell_conditions.extend([
-                pl_percent >= 10,  # Take profit at 10%
-                pl_percent <= -5,  # Stop loss at -5%
-                data['rsi'] > 70,
-                data['price_volatility'] > 15,
-                current_price >= (0.7 * float(data['ath']))
-            ])
-        else:
-            # No existing position - use technical only
-            sell_conditions = [
-                data['price_change_percentage_24h'] < -3,
-                data['rsi'] > 70,
-                data['current_price'] < data['sma_50']
-            ]
-
-        return sum(sell_conditions) >= 2
+        return 'sell' if sell_score >= 3 else 'hold', profit, reasons
